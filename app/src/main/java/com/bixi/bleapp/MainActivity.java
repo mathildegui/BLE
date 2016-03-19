@@ -17,6 +17,7 @@ import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.BaseAdapter;
+import android.widget.ListView;
 import android.widget.TextView;
 
 import java.util.ArrayList;
@@ -73,6 +74,16 @@ public class MainActivity extends ListActivity {
         }
     }
 
+    @Override
+    protected void onListItemClick(ListView l, View v, int position, long id) {
+        super.onListItemClick(l, v, position, id);
+        final BluetoothDevice bluetoothDevice = mLeDeviceListAdapter.getDevice(position);
+        Intent i = new Intent(this, DeviceActivity.class);
+        i.putExtra(DeviceActivity.NAME, bluetoothDevice.getName());
+        i.putExtra(DeviceActivity.ADDRESS, bluetoothDevice.getAddress());
+        startActivity(i);
+    }
+
     private void scanLeDevice(final boolean enable) {
         if(enable) {
             mHandler.postDelayed(new Runnable() {
@@ -92,7 +103,6 @@ public class MainActivity extends ListActivity {
     private BluetoothAdapter.LeScanCallback mLeScanCallback = new BluetoothAdapter.LeScanCallback() {
         @Override
         public void onLeScan(final BluetoothDevice device, int rssi, byte[] scanRecord) {
-            Log.d(TAG, "ON SCAN");
             if(device != null){
                 Log.d(TAG, device.getName() + "");
             }

@@ -29,10 +29,10 @@ public class DeviceActivity extends Activity {
     public static final String NAME    = "name";
     public static final String ADDRESS = "address";
 
-    private String mName;
     private String mAdress;
-
+    private Thread dataThread;
     private BluetoothLeService mBluetoothLeService;
+    private BluetoothGattCharacteristic mBluetoothGattCharacteristic;
 
 
     public static final String CMDNEXT     = "next";
@@ -75,14 +75,9 @@ public class DeviceActivity extends Activity {
 
     private void getExtrasValues() {
         Intent i = getIntent();
-        mName   = i.getStringExtra(NAME);
-        mAdress = i.getStringExtra(ADDRESS);
-
-        Log.i(TAG, "Name: " + mName + " -- Address: " + mAdress);
+        mAdress  = i.getStringExtra(ADDRESS);
     }
 
-
-    private int [][] caratteristiche = new int [5][2];
     @Override
     protected void onResume() {
         super.onResume();
@@ -90,8 +85,7 @@ public class DeviceActivity extends Activity {
 
         if (mBluetoothLeService != null) {
             final boolean result = mBluetoothLeService.connect(mAdress);
-
-            System.out.println("Connect request result=" + result);
+            Log.i(TAG, "Connect request result = " + result);
         }
 
         if (dataThread==null) {
@@ -100,29 +94,13 @@ public class DeviceActivity extends Activity {
                 public void run() {
                     try {
                         int j=0;
-                        while (mGattCharacteristics == null || mGattCharacteristics.size()==0){
+                        while (mBluetoothGattCharacteristic == null) {
                             Thread.sleep(500);
                             System.out.println("thread__waiting_data");
                         }
-                        BluetoothGattCharacteristic characteristic0 = mGattCharacteristics.get(caratteristiche[0][0]).get(caratteristiche[0][1]);
+                        BluetoothGattCharacteristic characteristic0 = mBluetoothGattCharacteristic;
                         mBluetoothLeService.setCharacteristicNotification(characteristic0, true);
                         Thread.sleep(150);
-                        BluetoothGattCharacteristic characteristic4 = mGattCharacteristics.get(caratteristiche[4][0]).get(caratteristiche[4][1]);
-                        mBluetoothLeService.setCharacteristicNotification(characteristic4, true);
-                        /*while(true) {
-                            for (int i=1; i<=3; i++) {
-                                BluetoothGattCharacteristic characteristic1 = mGattCharacteristics.get(caratteristiche[i][0]).get(caratteristiche[i][1]);
-                                mBluetoothLeService.readCharacteristic(characteristic1);
-                                Thread.sleep(500);
-                                j++;
-                                Log.d("check", ""+j);
-                                if (j==6 && (!foundAcceleration || !foundTemperature)) {
-                                    error();
-                                }
-                            }
-                            Thread.sleep(500);
-                            mBluetoothLeService.readRemoteRssi();
-                        }*/
                     } catch (Exception e) {
                         e.getLocalizedMessage();
                     }
@@ -132,92 +110,17 @@ public class DeviceActivity extends Activity {
         }
     }
 
-    private Thread dataThread;
-    private ArrayList<ArrayList<BluetoothGattCharacteristic>> mGattCharacteristics =
-            new ArrayList<ArrayList<BluetoothGattCharacteristic>>();
-    private final String LIST_NAME = "NAME";
-    private final String LIST_UUID = "UUID";
-
     private void displayGattServices(List<BluetoothGattService> gattServices) {
         if (gattServices == null) return;
-        String uuid;
-        String unknownServiceString = getResources().getString(R.string.unknown_service);
-        String unknownCharaString = getResources().getString(R.string.unknown_characteristic);
-        ArrayList<HashMap<String, String>> gattServiceData = new ArrayList<>();
-        ArrayList<ArrayList<HashMap<String, String>>> gattCharacteristicData
-                = new ArrayList<>();
-        mGattCharacteristics = new ArrayList<>();
-
 
         for (BluetoothGattService gattService : gattServices) {
-            HashMap<String, String> currentServiceData = new HashMap<String, String>();
-            uuid = gattService.getUuid().toString();
-            currentServiceData.put(
-                    LIST_NAME, unknownServiceString);
-            currentServiceData.put(LIST_UUID, uuid);
-            gattServiceData.add(currentServiceData);
-
-            ArrayList<HashMap<String, String>> gattCharacteristicGroupData =
-                    new ArrayList<HashMap<String, String>>();
-            List<BluetoothGattCharacteristic> gattCharacteristics =
-                    gattService.getCharacteristics();
-            ArrayList<BluetoothGattCharacteristic> charas =
-                    new ArrayList<BluetoothGattCharacteristic>();
-
+            List<BluetoothGattCharacteristic> gattCharacteristics = gattService.getCharacteristics();
 
             for (BluetoothGattCharacteristic gattCharacteristic : gattCharacteristics) {
-                charas.add(gattCharacteristic);
-                HashMap<String, String> currentCharaData = new HashMap<String, String>();
-                uuid = gattCharacteristic.getUuid().toString();
-                currentCharaData.put(
-                        LIST_NAME, unknownCharaString);
-                currentCharaData.put(LIST_UUID, uuid);
-                gattCharacteristicGroupData.add(currentCharaData);
+                if (BluetoothLeService.UUID_ACCELERATION.equals(gattCharacteristic.getUuid())) {
+                    mBluetoothGattCharacteristic = gattCharacteristic;
+                }
             }
-            mGattCharacteristics.add(charas);
-            gattCharacteristicData.add(gattCharacteristicGroupData);
-        }
-
-        int i=0,j;
-        for (ArrayList<BluetoothGattCharacteristic> service : mGattCharacteristics){
-            j=0;
-            for (BluetoothGattCharacteristic gatt : service){
-                UUID uid = gatt.getUuid();
-                if (BluetoothLeService.UUID_ACCELERATION.equals(uid)) {
-                    String currentTime = new SimpleDateFormat("HH:mm:ss").format(new Date());
-                    caratteristiche[0][0]=i;
-                    caratteristiche[0][1]=j;
-                    Log.d("stefano", "UUID_ACCELERATION");
-                } /*else if (BluetoothLeService.UUID_TEMPERATURE.equals(uid)) {
-                    String currentTime = new SimpleDateFormat("HH:mm:ss").format(new Date());
-                    DeviceScanActivity.log.add(new visualLog(currentTime,"Found temperature"));
-                    caratteristiche[1][0]=i;
-                    caratteristiche[1][1]=j;
-                } else if (BluetoothLeService.UUID_PRESSURE.equals(uid)) {
-                    if (pressureHumidityView.getVisibility()!=View.VISIBLE) {
-                        pressureHumidityView.setVisibility(View.VISIBLE);
-                    }
-                    String currentTime = new SimpleDateFormat("HH:mm:ss").format(new Date());
-                    DeviceScanActivity.log.add(new visualLog(currentTime,"Found pressure"));
-                    caratteristiche[2][0]=i;
-                    caratteristiche[2][1]=j;
-                } else if (BluetoothLeService.UUID_HUMIDITY.equals(uid)) {
-                    if (pressureHumidityView.getVisibility()!=View.VISIBLE) {
-                        pressureHumidityView.setVisibility(View.VISIBLE);
-                    }
-                    String currentTime = new SimpleDateFormat("HH:mm:ss").format(new Date());
-                    DeviceScanActivity.log.add(new visualLog(currentTime,"Found humidity"));
-                    caratteristiche[3][0]=i;
-                    caratteristiche[3][1]=j;
-                } else if (BluetoothLeService.UUID_FREE_FALL.equals(uid)) {
-                    String currentTime = new SimpleDateFormat("HH:mm:ss").format(new Date());
-                    DeviceScanActivity.log.add(new visualLog(currentTime,"Found free fall detection"));
-                    caratteristiche[4][0]=i;
-                    caratteristiche[4][1]=j;
-                }*/
-                j++;
-            }
-            i++;
         }
     }
 
@@ -238,8 +141,14 @@ public class DeviceActivity extends Activity {
             final String action = intent.getAction();
             if (BluetoothLeService.ACTION_GATT_SERVICES_DISCOVERED.equals(action)) {
                 displayGattServices(mBluetoothLeService.getSupportedGattServices());
+            }else if (BluetoothLeService.ACTION_DATA_AVAILABLE.equals(action)) {
+                int value =  intent.getIntExtra(BluetoothLeService.EXTRA_DATA, -1);
+                switch (value) {
+                    case BluetoothLeService.EXTRA_BUTTON_CLICK:
+                        manageMusic();
+                        break;
+                }
             }
-            manageMusic();
         }
     };
 

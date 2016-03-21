@@ -28,10 +28,9 @@ public class BluetoothLeService extends Service {
     private BluetoothGatt mBluetoothGatt;
     private String mBluetoothDeviceAddress;
 
-    private int mConnectionState = STATE_DISCONNECTED;
-
     private static final int STATE_CONNECTED    = 2;
     private static final int STATE_CONNECTING   = 1;
+    public static final int EXTRA_BUTTON_CLICK  = 0;
     private static final int STATE_DISCONNECTED = 0;
 
     public final static String EXTRA_DATA                      = "com.bixi.bleapp.EXTRA_DATA";
@@ -82,12 +81,7 @@ public class BluetoothLeService extends Service {
         //Try to reconnect
         if(mBluetoothDeviceAddress != null && mBluetoothDeviceAddress.equals(address) && mBluetoothGatt != null) {
             Log.d(TAG, "Trying to use an existing mBluetoothGatt for connection.");
-            if(mBluetoothGatt.connect()) {
-                mConnectionState = STATE_CONNECTING;
-                return true;
-            } else {
-                return false;
-            }
+            return mBluetoothGatt.connect();
         }
 
         final BluetoothDevice device = mBluetoothAdapter.getRemoteDevice(address);
@@ -101,7 +95,6 @@ public class BluetoothLeService extends Service {
         mBluetoothGatt = device.connectGatt(this, true, mGattCallback);
         Log.d(TAG, "Trying to create a new connection.");
         mBluetoothDeviceAddress = address;
-        mConnectionState = STATE_CONNECTING;
         return true;
     }
 
@@ -111,9 +104,6 @@ public class BluetoothLeService extends Service {
      * @return Return true if the initialization is successful.
      */
     public boolean initialize() {
-        /**
-         * FIXME :: For API level 18 and above, get a reference to BluetoothAdapter through BluetoothManager.
-         */
         if (mBluetoothManager == null) {
             mBluetoothManager = (BluetoothManager) getSystemService(Context.BLUETOOTH_SERVICE);
             if (mBluetoothManager == null) {
@@ -139,8 +129,7 @@ public class BluetoothLeService extends Service {
             Log.d(TAG, "Connection State Change");
             String intentAction;
             if(newState == BluetoothProfile.STATE_CONNECTED) {
-                intentAction     = ACTION_GATT_CONNECTED;
-                mConnectionState = STATE_CONNECTED;
+                intentAction = ACTION_GATT_CONNECTED;
                 broadcastUpdate(intentAction);
 
                 Log.i(TAG, "Connected to GATT server.");
@@ -148,8 +137,7 @@ public class BluetoothLeService extends Service {
                 Log.i(TAG, "Attempting to start service discovery:" +
                         mBluetoothGatt.discoverServices());
             } else if(newState == BluetoothProfile.STATE_DISCONNECTED) {
-                intentAction     = ACTION_GATT_DISCONNECTED;
-                mConnectionState = STATE_DISCONNECTED;
+                intentAction = ACTION_GATT_DISCONNECTED;
 
                 Log.i(TAG, "Disconnected from GATT server.");
                 broadcastUpdate(intentAction);
@@ -193,15 +181,9 @@ public class BluetoothLeService extends Service {
     private void broadcastUpdate(String actionDataAvailable, BluetoothGattCharacteristic characteristic) {
         Log.d(TAG, "Broadcast Update UUID: " +characteristic.getUuid());
         final Intent intent = new Intent(actionDataAvailable);
-
-        final byte[] data = characteristic.getValue();
-        if (data != null && data.length > 0) {
-            final StringBuilder stringBuilder = new StringBuilder(data.length);
-            for (byte byteChar : data)
-                stringBuilder.append(String.format("%02X ", byteChar));
-            intent.putExtra(EXTRA_DATA, new String(data) + "\n" + stringBuilder.toString());
+        if(UUID_ACCELERATION.equals(characteristic.getUuid())) {
+            intent.putExtra(EXTRA_DATA, EXTRA_BUTTON_CLICK);
         }
-
         sendBroadcast(intent);
     }
 
@@ -223,7 +205,6 @@ public class BluetoothLeService extends Service {
         }
         mBluetoothGatt.setCharacteristicNotification(characteristic, enabled);
         if (UUID_ACCELERATION.equals(characteristic.getUuid())) {
-            Log.d(TAG, "UUID_ACCELERATION setCharacteristicNotification");
             BluetoothGattDescriptor descriptor = characteristic.getDescriptor(CHARACTERISTIC_UPDATE_NOTIFICATION_DESCRIPTOR_UUID);
             descriptor.setValue(enabled ? BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE : new byte[] { 0x00, 0x00 });
             return mBluetoothGatt.writeDescriptor(descriptor); //descriptor write operation successfully started?
@@ -239,7 +220,6 @@ public class BluetoothLeService extends Service {
      */
     public List<BluetoothGattService> getSupportedGattServices() {
         if (mBluetoothGatt == null) return null;
-
         return mBluetoothGatt.getServices();
     }
 }

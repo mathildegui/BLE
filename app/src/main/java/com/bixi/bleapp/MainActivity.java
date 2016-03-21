@@ -28,14 +28,12 @@ public class MainActivity extends ListActivity {
     private static final long SCAN_PERIOD = 10000;
 
     private Handler mHandler;
-    private ProgressDialog mProgress;
     private BluetoothAdapter mBluetoothAdapter;
     private LeDeviceListAdapter mLeDeviceListAdapter;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        //setContentView(R.layout.activity_main);
         setProgressBarIndeterminate(true);
 
         mHandler = new Handler();
@@ -63,8 +61,6 @@ public class MainActivity extends ListActivity {
     public boolean onOptionsItemSelected(MenuItem item) {
         switch (item.getItemId()) {
             case R.id.menu_scan:
-                //Intent intent = new Intent(this, LogActivity.class);
-                //startActivity(intent);
                 scanLeDevice(true);
                 return true;
             case R.id.menu_stop:
